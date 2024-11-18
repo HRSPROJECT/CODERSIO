@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CODER'S IO</title>
+    <link rel="stylesheet" href="styles.css">
+    
+</head>
+<style>
+      body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+        nav {
+            background-color: #333;
+            color: white;
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+        }
+        .navbar h1 {
+            margin: 0;
+        }
+        #userProfile {
+            display: none;
+            align-items: center;
+        }
+        #logoutBtn {
+            margin-left: 10px;
+            padding: 5px 10px;
+            background-color: red;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        .hidden {
+            display: none;
+        }
+        #login-section, #post-section {
+            max-width: 600px;
+            margin: 2rem auto;
+            padding: 1rem;
+            background-color: white;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        input, textarea {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        button {
+            padding: 10px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            cursor: pointer;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+        button:hover {
+            background-color: #218838;
+        }
+        #postsContainer {
+            margin-top: 2rem;
+        }
+        .post {
+            background-color: #fff;
+            margin: 10px 0;
+            padding: 1rem;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            margin-left: 10%;
+        }
+        .post img, .post video {
+            max-width: 100%;
+            height: auto;
+        }
+        small {
+            color: #777;
+        }
+        
+        .comment-section {
+            margin-top: 20px;
+            padding-left: 20px;
+        }
+        .comment {
+            margin-top: 10px;
+            background-color: #f4f4f4;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .reply {
+            margin-left: 20px;
+            margin-top: 5px;
+            background-color: #e0e0e0;
+            padding: 5px;
+            border-radius: 3px;
+        }
+        .progress-bar {
+            width: 100%;
+            background-color: #f3f3f3;
+        }
+
+        .progress {
+            width: 0%;
+            height: 20px;
+            background-color: #4caf50;
+        }
+
+        .hidden {
+            display: none;
+        }
+         .video-post {
+            margin-top: 10px;
+        }
+
+        video {
+            width: 100%;
+            max-width: 600px;
+            height: auto;
+        }
+    
+</style>
+<body>
+
+    <!-- Navbar -->
+    <nav>
+        <h1>coder's io</h1>
+        <div id="userProfile">
+            <span id="username"></span>
+            <button id="logoutBtn">Logout</button>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div id="login-section">
+        <h2>Login / Sign Up</h2>
+        <input type="email" id="email" placeholder="Email">
+        <input type="password" id="password" placeholder="Password">
+        <button id="loginBtn">Login</button>
+        <button id="signUpBtn">Sign Up</button>
+    </div>
+
+    <div id="post-section" class="hidden">
+        <h2>Submit a Post</h2>
+        <textarea id="postContent" placeholder="Write a message..."></textarea>
+        <input type="file" id="mediaUpload" accept="image/*,video/*">
+        <div id="mediaPreview"></div>
+        <button id="uploadConfirmBtn" class="hidden">Upload</button>
+        <button id="discardUploadBtn" class="hidden">Discard</button>
+
+        <button id="submitPostBtn">Submit Post</button>
+        <div id="uploadOptions">
+            <label for="uploadRatio">Select Upload Ratio:</label>
+            <select id="uploadRatio">
+                <option value="1:1">1:1 (Square)</option>
+                <option value="16:9">16:9 (Widescreen)</option>
+                <option value="4:3">4:3 (Classic)</option>
+            </select>
+        </div>
+        
+
+        <h2>Posts</h2>
+        <div id="postsContainer"></div>
+    </div>
+
+    <!-- Firebase JS SDK via CDN -->
+    <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-storage-compat.js"></script>
+
+    <!-- App Logic -->
+    <script>
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyCNyZAmw3D8aCqNOHOw0f3YKtZWNatauN8",
+            authDomain: "hello-4105a.firebaseapp.com",
+            projectId: "hello-4105a",
+            storageBucket: "hello-4105a.appspot.com",
+            messagingSenderId: "978669199403",
+            appId: "1:978669199403:web:6c20e3dbaf815bba890a6e",
+            measurementId: "G-2TGPP3E88X"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+        const storage = firebase.storage();
+
+        // DOM elements
+        const loginSection = document.getElementById('login-section');
+        const postSection = document.getElementById('post-section');
+        const emailInput = document.getElementById('email');
+        const passwordInput = document.getElementById('password');
+        const loginBtn = document.getElementById('loginBtn');
+        const signUpBtn = document.getElementById('signUpBtn');
+        const submitPostBtn = document.getElementById('submitPostBtn');
+        const mediaUpload = document.getElementById('mediaUpload');
+        const mediaPreview = document.getElementById('mediaPreview');
+        const postsContainer = document.getElementById('postsContainer');
+        const uploadConfirmBtn = document.getElementById('uploadConfirmBtn');
+        const discardUploadBtn = document.getElementById('discardUploadBtn');
+        const logoutBtn = document.getElementById('logoutBtn');
+        const userProfile = document.getElementById('userProfile');
+        const username = document.getElementById('username');
+
+        let selectedFile = null;
+
+        // Authentication
+        loginBtn.addEventListener('click', () => {
+            const email = emailInput.value;
+            const password = passwordInput.value;
+            auth.signInWithEmailAndPassword(email, password)
+                .then(() => {
+                    loginSection.classList.add('hidden');
+                    postSection.classList.remove('hidden');
+                    loadPosts();
+                })
+                .catch(error => alert(error.message));
+        });
+
+        signUpBtn.addEventListener('click', () => {
+            const email = emailInput.value;
+            const password = passwordInput.value;
+            auth.createUserWithEmailAndPassword(email, password)
+                .then(() => {
+                    alert('Account created successfully');
+                })
+                .catch(error => alert(error.message));
+        });
+
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                userProfile.style.display = 'flex';
+                username.innerText = user.email;
+                loginSection.classList.add('hidden');
+                postSection.classList.remove('hidden');
+                loadPosts();
+            } else {
+                userProfile.style.display = 'none';
+                loginSection.classList.remove('hidden');
+                postSection.classList.add('hidden');
+            }
+        });
+
+        logoutBtn.addEventListener('click', () => {
+            auth.signOut().then(() => {
+                loginSection.classList.remove('hidden');
+                postSection.classList.add('hidden');
+            });
+        });
+
+        // File preview and upload/discard option
+        mediaUpload.addEventListener('change', () => {
+            selectedFile = mediaUpload.files[0];
+            if (selectedFile) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    if (selectedFile.type.startsWith('image/')) {
+                        mediaPreview.innerHTML = `<img src="${e.target.result}" alt="preview" style="max-width: 100%;"/>`;
+                    } else if (selectedFile.type.startsWith('video/')) {
+                        mediaPreview.innerHTML = `<video src="${e.target.result}" controls style="max-width: 100%;"></video>`;
+                    }
+                    uploadConfirmBtn.classList.remove('hidden');
+                    discardUploadBtn.classList.remove('hidden');
+                };
+                reader.readAsDataURL(selectedFile);
+            }
+        });
+
+        discardUploadBtn.addEventListener('click', () => {
+            selectedFile = null;
+            mediaPreview.innerHTML = '';
+            uploadConfirmBtn.classList.add('hidden');
+            discardUploadBtn.classList.add('hidden');
+        });
+
+        uploadConfirmBtn.addEventListener('click', () => {
+            const storageRef = storage.ref(`posts/${auth.currentUser.uid}/${selectedFile.name}`);
+            storageRef.put(selectedFile).then(snapshot => {
+                snapshot.ref.getDownloadURL().then(url => {
+                    savePostToFirestore(url);
+                    mediaPreview.innerHTML = '';
+                    uploadConfirmBtn.classList.add('hidden');
+                    discardUploadBtn.classList.add('hidden');
+                });
+            }).catch(error => alert(error.message));
+        });
+
+        // Submit a post
+        submitPostBtn.addEventListener('click', () => {
+            const postContent = document.getElementById('postContent').value;
+            if (!postContent && !selectedFile) {
+                alert('Post content or media is required!');
+                return;
+            }
+            if (selectedFile) {
+                uploadConfirmBtn.click(); // trigger file upload and post creation
+            } else {
+                savePostToFirestore(null); // save post without media
+            }
+        });
+
+        // Save post to Firestore
+        function savePostToFirestore(mediaUrl) {
+            db.collection('posts').add({
+                content: document.getElementById('postContent').value,
+                mediaUrl: mediaUrl || '',
+                createdBy: auth.currentUser.email,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                comments: [] // for storing comments
+            }).then(() => {
+                document.getElementById('postContent').value = '';
+                selectedFile = null;
+                loadPosts();
+            }).catch(error => alert(error.message));
+        }
+
+        // Load posts from Firestore
+        function loadPosts() {
+            postsContainer.innerHTML = '';
+            db.collection('posts').orderBy('createdAt', 'desc').get().then(snapshot => {
+                snapshot.forEach(doc => {
+                    const post = doc.data();
+                    const postId = doc.id;
+                    const postElement = document.createElement('div');
+                    postElement.classList.add('post');
+                    postElement.innerHTML = `
+                        <p>${post.content}</p>
+                        ${post.mediaUrl ? (post.mediaUrl.endsWith('.mp4') ? `<video src="${post.mediaUrl}" controls></video>` : `<img src="${post.mediaUrl}" />`) : ''}
+                        <small>Posted by ${post.createdBy}</small>
+                        <div class="comment-section" data-post-id="${postId}">
+                            <textarea placeholder="Write a comment..."></textarea>
+                            <button class="commentBtn">Comment</button>
+                            <div class="comments-list"></div>
+                        </div>
+                    `;
+                    postsContainer.appendChild(postElement);
+                    loadComments(postId, postElement.querySelector('.comments-list'));
+                });
+
+                // Add comment functionality
+                document.querySelectorAll('.commentBtn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const postId = btn.closest('.comment-section').dataset.postId;
+                        const commentContent = btn.previousElementSibling.value;
+                        if (commentContent) {
+                            db.collection('posts').doc(postId).update({
+                                comments: firebase.firestore.FieldValue.arrayUnion({
+                                    content: commentContent,
+                                    createdBy: auth.currentUser.email,
+                                    replies: [] // for storing replies
+                                })
+                            }).then(() => {
+                                loadPosts(); // refresh the post list
+                            });
+                        }
+                    });
+                });
+            });
+        }
+
+        // Load comments
+        function loadComments(postId, commentsListElement) {
+            db.collection('posts').doc(postId).get().then(doc => {
+                const post = doc.data();
+                if (post.comments) {
+                    commentsListElement.innerHTML = '';
+                    post.comments.forEach((comment, index) => {
+                        const commentElement = document.createElement('div');
+                        commentElement.classList.add('comment');
+                        commentElement.innerHTML = `
+                            <p>${comment.content} - <small>${comment.createdBy}</small></p>
+                            <textarea placeholder="Write a reply..."></textarea>
+                            <button class="replyBtn" data-post-id="${postId}" data-comment-index="${index}">Reply</button>
+                            <div class="replies-list"></div>
+                        `;
+                        commentsListElement.appendChild(commentElement);
+
+                        // Load replies
+                        comment.replies.forEach(reply => {
+                            const replyElement = document.createElement('div');
+                            replyElement.classList.add('reply');
+                            replyElement.innerHTML = `<p>${reply.content} - <small>${reply.createdBy}</small></p>`;
+                            commentElement.querySelector('.replies-list').appendChild(replyElement);
+                        });
+
+                        // Add reply functionality
+                        commentElement.querySelector('.replyBtn').addEventListener('click', function () {
+                            const replyContent = this.previousElementSibling.value;
+                            const postId = this.dataset.postId;
+                            const commentIndex = this.dataset.commentIndex;
+
+                            if (replyContent) {
+                                const postRef = db.collection('posts').doc(postId);
+                                postRef.get().then(doc => {
+                                    const postData = doc.data();
+                                    postData.comments[commentIndex].replies.push({
+                                        content: replyContent,
+                                        createdBy: auth.currentUser.email
+                                    });
+                                    postRef.update(postData).then(() => {
+                                        loadPosts(); // refresh the post list
+                                    });
+                                });
+                            }
+                        });
+                    });
+                }
+            });
+        }
+        // Resize image according to the selected ratio
+function resizeImage(image, ratio) {
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    
+    let [width, height] = [image.width, image.height];
+    
+    if (ratio === '1:1') {
+        width = height = Math.min(image.width, image.height);
+    } else if (ratio === '16:9') {
+        width = image.width;
+        height = width * (9 / 16);
+    } else if (ratio === '4:3') {
+        width = image.width;
+        height = width * (3 / 4);
+    }
+
+    canvas.width = width;
+    canvas.height = height;
+    context.drawImage(image, 0, 0, width, height);
+    return canvas.toDataURL();
+}
+function setupVideoPlayer(postId) {
+        const video = document.getElementById(`video-${postId}`);
+        const progress = document.getElementById(`progress-${postId}`);
+        const time = document.getElementById(`time-${postId}`);
+        const duration = document.getElementById(`duration-${postId}`);
+
+        video.addEventListener('loadedmetadata', () => {
+            duration.textContent = formatTime(video.duration);
+            progress.max = Math.floor(video.duration);
+        });
+
+        video.addEventListener('timeupdate', () => {
+            progress.value = Math.floor(video.currentTime);
+            time.textContent = formatTime(video.currentTime);
+        });
+    }
+// Handle the file upload preview
+mediaUpload.addEventListener('change', () => {
+    selectedFile = mediaUpload.files[0];
+    const ratio = document.getElementById('uploadRatio').value;
+    
+    if (selectedFile) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const mediaType = selectedFile.type;
+            if (mediaType.startsWith('image/')) {
+                const img = new Image();
+                img.src = e.target.result;
+                img.onload = () => {
+                    const resizedImage = resizeImage(img, ratio);
+                    mediaPreview.innerHTML = `<img src="${resizedImage}" alt="preview" style="max-width: 100%;"/>`;
+                };
+            } else if (mediaType.startsWith('video/')) {
+                mediaPreview.innerHTML = `<video src="${e.target.result}" controls style="aspect-ratio: ${ratio}; max-width: 100%;"></video>`;
+            }
+            uploadConfirmBtn.classList.remove('hidden');
+            discardUploadBtn.classList.remove('hidden');
+        };
+        reader.readAsDataURL(selectedFile);
+    }
+});
+
+
+   // Sign up function
+function signUpWithEmailPassword(email, password) {
+    firebase.auth().createUserWithEmailAndPassword(email, password)
+        .then((userCredential) => {
+            var user = userCredential.user;
+            var username = extractUsernameFromEmail(user.email);
+            
+            // Check if the username is unique
+            checkUsernameUniqueness(username).then(isUnique => {
+                if (isUnique) {
+                    // Save the username in Firestore
+                    saveUsernameInFirestore(user.uid, username);
+                    console.log("User signed up and username saved: " + username);
+                } else {
+                    console.error("Username is already taken.");
+                    // Optionally, you can prompt the user to choose a different username
+                    firebase.auth().currentUser.delete(); // Delete the user if username is not unique
+                }
+            });
+        })
+        .catch((error) => {
+            console.error("Error signing up: ", error);
+        });
+}
+
+
+
+
+    </script>
+
+</body>
+</html>
